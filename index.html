@@ -1,11 +1,12 @@
 <!DOCTYPE html>
+
 <html lang="es">
 <head>
-  <link rel="manifest" href="manifest.json">
-  <meta name="theme-color" content="#28a745">
-  <meta charset="UTF-8">
-  <title>Control de Equipos - FK.Inversiones</title>
-  <style>
+<link href="manifest.json" rel="manifest"/>
+<meta content="#28a745" name="theme-color"/>
+<meta charset="utf-8"/>
+<title>Control de Equipos - FK.Inversiones</title>
+<style>
     body { font-family: Arial, sans-serif; background: #f0f0f0; padding: 20px; }
     h1 { color: #333; }
     table { width: 100%; border-collapse: collapse; margin-top: 10px; }
@@ -19,36 +20,35 @@
   </style>
 </head>
 <body>
-  <h1>FK.Inversiones - Control de Alquiler de Equipos de TV</h1>
-  <table id="tabla-clientes">
-    <thead>
-      <tr>
-        <th>Cliente</th>
-        <th>Cantidad de Equipos</th>
-        <th>Fecha de Pago</th>
-        <th>Mes de Pago</th>
-        <th>Monto Pagado ($)</th>
-        <th>¿Pagó?</th>
-        <th>Acción</th>
-      </tr>
-    </thead>
-    <tbody></tbody>
-  </table>
-  <button class="boton" onclick="agregarFila()">Agregar Cliente</button>
-  <div class="resumen">
-    <div id="resumenMensual">Total mensual de equipos alquilados: 0</div>
-    <div id="resumenPagos">Total recibido en pagos: $0</div>
-    <div id="resumenPorMes" style="margin-top: 20px;">
-      <h3>Resumen de Pagos por Mes</h3>
-      <ul id="listaPagosMensuales" style="list-style: none; padding-left: 0;"></ul>
-    </div>
-  </div>
-  <div style="margin-top: 20px;">
-    <button class="boton" onclick="exportarExcel()">Exportar a Excel</button>
-    <button class="boton" onclick="window.print()">Exportar a PDF / Imprimir</button>
-  </div>
-
-  <script>
+<h1>FK.Inversiones - Control de Alquiler de Equipos de TV</h1>
+<table id="tabla-clientes">
+<thead>
+<tr>
+<th>Cliente</th>
+<th>Cantidad de Equipos</th>
+<th>Fecha de Pago</th>
+<th>Mes de Pago</th>
+<th>Monto Pagado ($)</th>
+<th>¿Pagó?</th>
+<th>Acción</th>
+</tr>
+</thead>
+<tbody></tbody>
+</table>
+<button class="boton" onclick="agregarFila()">Agregar Cliente</button>
+<div class="resumen">
+<div id="resumenMensual">Total mensual de equipos alquilados: 0</div>
+<div id="resumenPagos">Total recibido en pagos: $0</div>
+<div id="resumenPorMes" style="margin-top: 20px;">
+<h3>Resumen de Pagos por Mes</h3>
+<ul id="listaPagosMensuales" style="list-style: none; padding-left: 0;"></ul>
+</div>
+</div>
+<div style="margin-top: 20px;">
+<button class="boton" onclick="exportarExcel()">Exportar a Excel</button>
+<button class="boton" onclick="window.print()">Exportar a PDF / Imprimir</button>
+</div>
+<script>
     function guardarDatos() {
       const filas = document.querySelectorAll("#tabla-clientes tbody tr");
       const datos = [];
@@ -117,6 +117,7 @@
       document.getElementById("resumenPagos").textContent = "Total recibido en pagos: $" + totalPagos;
       const lista = document.getElementById("listaPagosMensuales");
       lista.innerHTML = "";
+  const detalles = document.createElement('ul'); detalles.style.listStyle='none';
       Object.keys(pagosMensuales).sort().forEach(mes => {
         const item = document.createElement("li");
         item.textContent = `${mes}: $${pagosMensuales[mes]}`;
@@ -142,14 +143,13 @@
   
 let movimientos = JSON.parse(localStorage.getItem("movimientos") || "[]");
 
-
 function registrarMovimiento(event) {
   event.preventDefault();
   const tipo = document.getElementById("tipo").value;
   const monto = parseInt(document.getElementById("montoMovimiento").value);
   const metodo = document.getElementById("metodoPago").value;
-  const mes = document.getElementById("mesMovimiento").value;
   const motivo = document.getElementById("motivoMovimiento").value;
+  const mes = document.getElementById("mesMovimiento").value;
 
   movimientos.push({ tipo, monto, metodo, mes, motivo });
   localStorage.setItem("movimientos", JSON.stringify(movimientos));
@@ -157,15 +157,10 @@ function registrarMovimiento(event) {
   actualizarListaMovimientos();
 }
 
-
-
 function actualizarListaMovimientos() {
   const resumen = {};
   let totalIngresos = 0;
   let totalEgresos = 0;
-
-  const lista = document.getElementById("listaMovimientos");
-  lista.innerHTML = "";
 
   movimientos.forEach(m => {
     if (!resumen[m.mes]) resumen[m.mes] = { Ingreso: 0, Egreso: 0 };
@@ -173,16 +168,29 @@ function actualizarListaMovimientos() {
 
     if (m.tipo === "Ingreso") totalIngresos += m.monto;
     if (m.tipo === "Egreso") totalEgresos += m.monto;
+  });
 
+  const lista = document.getElementById("listaMovimientos");
+  lista.innerHTML = "";
+  const detalles = document.createElement('ul'); detalles.style.listStyle='none';
+  Object.keys(resumen).sort().forEach(mes => {
+    const ingreso = resumen[mes].Ingreso || 0;
+    const egreso = resumen[mes].Egreso || 0;
     const li = document.createElement("li");
-    li.textContent = `${m.mes} - ${m.tipo}: $${m.monto} - ${m.metodo} - Motivo: ${m.motivo}`;
+    li.textContent = `${mes} - Ingresos: $${ingreso}, Egresos: $${egreso}`;
     lista.appendChild(li);
+
+  movimientos.forEach(m => {
+    const item = document.createElement("li");
+    item.textContent = `→ ${m.mes} | ${m.tipo}: $${m.monto} (${m.metodo}) — Motivo: ${m.motivo}`;
+    detalles.appendChild(item);
+  });
+  lista.appendChild(detalles);
+
   });
 
   document.getElementById("totalesGenerales").textContent =
     `Total General — Ingresos: $${totalIngresos}, Egresos: $${totalEgresos}`;
-}
-, Egresos: $${totalEgresos}`;
 }
 
 function exportarMovimientosExcel() {
@@ -331,89 +339,78 @@ if ('serviceWorker' in navigator) {
 }
 
 </script>
-
-  <div class="resumen">
-    <h3>Registro de Ingresos y Egresos</h3>
-    <form id="form-movimientos" onsubmit="registrarMovimiento(event)">
-      <label>
+<div class="resumen">
+<h3>Registro de Ingresos y Egresos</h3>
+<form id="form-movimientos" onsubmit="registrarMovimiento(event)">
+<label>
         Tipo:
         <select id="tipo">
-          <option value="Ingreso">Ingreso</option>
-          <option value="Egreso">Egreso</option>
-        </select>
-      </label>
-      <label>
+<option value="Ingreso">Ingreso</option>
+<option value="Egreso">Egreso</option>
+</select>
+</label>
+<label>
         Monto ($):
-        <input type="number" id="montoMovimiento" min="0" required>
-      </label>
-      <label>
+        <input id="montoMovimiento" min="0" required="" type="number"/>
+</label>
+<label>
         Método de Pago:
         <select id="metodoPago">
-          <option value="Efectivo">Efectivo</option>
-          <option value="Transferencia">Transferencia</option>
-        </select>
-      </label>
-      <label>
+<option value="Efectivo">Efectivo</option>
+<option value="Transferencia">Transferencia</option>
+</select>
+</label>
+<label>
         Mes:
         <select id="mesMovimiento">
-          <option value="Enero">Enero</option>
-          <option value="Febrero">Febrero</option>
-          <option value="Marzo">Marzo</option>
-          <option value="Abril">Abril</option>
-          <option value="Mayo">Mayo</option>
-          <option value="Junio">Junio</option>
-          <option value="Julio">Julio</option>
-          <option value="Agosto">Agosto</option>
-          <option value="Septiembre">Septiembre</option>
-          <option value="Octubre">Octubre</option>
-          <option value="Noviembre">Noviembre</option>
-          <option value="Diciembre">Diciembre</option>
-        </select>
-      </label>
-      
-<label>
-  Motivo:
-  <input type="text" id="motivoMovimiento" required>
+<option value="Enero">Enero</option>
+<option value="Febrero">Febrero</option>
+<option value="Marzo">Marzo</option>
+<option value="Abril">Abril</option>
+<option value="Mayo">Mayo</option>
+<option value="Junio">Junio</option>
+<option value="Julio">Julio</option>
+<option value="Agosto">Agosto</option>
+<option value="Septiembre">Septiembre</option>
+<option value="Octubre">Octubre</option>
+<option value="Noviembre">Noviembre</option>
+<option value="Diciembre">Diciembre</option>
+</select>
 </label>
-<button type="submit" class="boton">Registrar Movimiento</button>
-
-    </form>
-
-    <div style="margin-top: 15px;">
-      <h4>Resumen de Movimientos</h4>
-      <ul id="listaMovimientos" style="list-style: none; padding-left: 0;"></ul>
-      <div id="totalesGenerales" style="margin-top: 10px; font-weight: bold;"></div>
-      <div style="margin-top: 10px;">
-        <button class="boton" onclick="exportarMovimientosExcel()">Exportar Movimientos a Excel</button>
-        <button class="boton" onclick="imprimirMovimientos()">Exportar Movimientos a PDF / Imprimir</button>
-      </div>
-    </div>
-  </div>
-
-
-  <div class="resumen" style="margin-top: 30px;">
-    <h3>Generar Factura</h3>
-    <form id="form-factura" onsubmit="generarFactura(event)">
-      <label>Cliente: <input type="text" id="facturaCliente" required></label>
-      <label>Servicio Prestado: <input type="text" id="facturaServicio" required></label>
-      <label>Monto Total ($): <input type="number" id="facturaMonto" required min="0"></label>
-      <button type="submit" class="boton">Generar Factura</button>
-    </form>
-    <button class="boton" onclick="imprimirFactura()">Descargar Factura en PDF</button>
+<label>Motivo:<input id="motivoMovimiento" required="True" type="text"/></label><button class="boton" type="submit">Registrar Movimiento</button>
+</form>
+<div style="margin-top: 15px;">
+<h4>Resumen de Movimientos</h4>
+<ul id="listaMovimientos" style="list-style: none; padding-left: 0;"></ul>
+<div id="totalesGenerales" style="margin-top: 10px; font-weight: bold;"></div>
+<div style="margin-top: 10px;">
+<button class="boton" onclick="exportarMovimientosExcel()">Exportar Movimientos a Excel</button>
+<button class="boton" onclick="imprimirMovimientos()">Exportar Movimientos a PDF / Imprimir</button>
+</div>
+</div>
+</div>
+<div class="resumen" style="margin-top: 30px;">
+<h3>Generar Factura</h3>
+<form id="form-factura" onsubmit="generarFactura(event)">
+<label>Cliente: <input id="facturaCliente" required="" type="text"/></label>
+<label>Servicio Prestado: <input id="facturaServicio" required="" type="text"/></label>
+<label>Monto Total ($): <input id="facturaMonto" min="0" required="" type="number"/></label>
+<button class="boton" type="submit">Generar Factura</button>
+</form>
+<button class="boton" onclick="imprimirFactura()">Descargar Factura en PDF</button>
 <div id="facturaGenerada" style="margin-top: 20px; display: none; background: #fff; padding: 15px; border-radius: 8px; box-shadow: 0 0 5px rgba(0,0,0,0.1);">
-      <img src="logo_fk.png" alt="Logo FK Inversiones" style="width: 150px; display: block; margin-bottom: 10px;"><h3>Factura</h3>
-      <p><strong>Empresa:</strong> FK.inversiones</p>
-      <p><strong>Teléfono:</strong> 950832918</p>
-      <p><strong>Dirección:</strong> Pasaje los Portugueses 718, Chacra Marín, Melipilla</p>
-      <hr>
-      <p><strong>Cliente:</strong> <span id="facturaClienteOut"></span></p>
-      <p><strong>Servicio:</strong> <span id="facturaServicioOut"></span></p>
-      <p><strong>Monto Total:</strong> $<span id="facturaMontoOut"></span></p>
-      <p><em>Nota: Todo trabajo se realizará previa aprobación del presupuesto.</em></p>
-      <hr>
-      <p style="text-align:center; font-weight:bold;">FK.inversiones - los mejores en sistemas</p>
-    </div>
-  </div>
-
+<img alt="Logo FK Inversiones" src="logo_fk.png" style="width: 150px; display: block; margin-bottom: 10px;"/><h3>Factura</h3>
+<p><strong>Empresa:</strong> FK.inversiones</p>
+<p><strong>Teléfono:</strong> 950832918</p>
+<p><strong>Dirección:</strong> Pasaje los Portugueses 718, Chacra Marín, Melipilla</p>
+<hr/>
+<p><strong>Cliente:</strong> <span id="facturaClienteOut"></span></p>
+<p><strong>Servicio:</strong> <span id="facturaServicioOut"></span></p>
+<p><strong>Monto Total:</strong> $<span id="facturaMontoOut"></span></p>
+<p><em>Nota: Todo trabajo se realizará previa aprobación del presupuesto.</em></p>
+<hr/>
+<p style="text-align:center; font-weight:bold;">FK.inversiones - los mejores en sistemas</p>
+</div>
+</div>
 </body>
 </html>
