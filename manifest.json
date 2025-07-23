@@ -1,0 +1,20 @@
+{
+  "name": "FK.Inversiones",
+  "short_name": "FK.Inversiones",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#28a745",
+  "icons": [
+    {
+      "src": "logo_fk.png",
+      "type": "image/png",
+      "sizes": "192x192"
+    },
+    {
+      "src": "logo_fk.png",
+      "type": "image/png",
+      "sizes": "512x512"
+    }
+  ]
+}

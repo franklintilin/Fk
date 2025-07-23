@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#28a745">
+  <meta charset="UTF-8">
+  <title>Control de Equipos - FK.Inversiones</title>
+  <style>
+    body { font-family: Arial, sans-serif; background: #f0f0f0; padding: 20px; }
+    h1 { color: #333; }
+    table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+    th, td { border: 1px solid #aaa; padding: 8px; text-align: center; }
+    th { background-color: #444; color: white; }
+    input[type="text"], input[type="number"], input[type="date"] { width: 95%; padding: 5px; }
+    .boton { margin-top: 10px; padding: 8px 15px; background: #28a745; color: white; border: none; cursor: pointer; border-radius: 5px; }
+    .boton:hover { background: #218838; }
+    .bloqueado { background-color: #ffcccc !important; }
+    .resumen { margin-top: 20px; background: #fff; padding: 15px; border-radius: 8px; box-shadow: 0 0 5px rgba(0,0,0,0.1); }
+  </style>
+</head>
+<body>
+  <h1>FK.Inversiones - Control de Alquiler de Equipos de TV</h1>
+  <table id="tabla-clientes">
+    <thead>
+      <tr>
+        <th>Cliente</th>
+        <th>Cantidad de Equipos</th>
+        <th>Fecha de Pago</th>
+        <th>Mes de Pago</th>
+        <th>Monto Pagado ($)</th>
+        <th>¿Pagó?</th>
+        <th>Acción</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+  <button class="boton" onclick="agregarFila()">Agregar Cliente</button>
+  <div class="resumen">
+    <div id="resumenMensual">Total mensual de equipos alquilados: 0</div>
+    <div id="resumenPagos">Total recibido en pagos: $0</div>
+    <div id="resumenPorMes" style="margin-top: 20px;">
+      <h3>Resumen de Pagos por Mes</h3>
+      <ul id="listaPagosMensuales" style="list-style: none; padding-left: 0;"></ul>
+    </div>
+  </div>
+  <div style="margin-top: 20px;">
+    <button class="boton" onclick="exportarExcel()">Exportar a Excel</button>
+    <button class="boton" onclick="window.print()">Exportar a PDF / Imprimir</button>
+  </div>
+
+  <script>
+    function guardarDatos() {
+      const filas = document.querySelectorAll("#tabla-clientes tbody tr");
+      const datos = [];
+      filas.forEach(fila => {
+        const inputs = fila.getElementsByTagName('input');
+        const selects = fila.getElementsByTagName('select');
+        datos.push({
+          cliente: inputs[0].value,
+          cantidad: inputs[1].value,
+          fecha: inputs[2].value,
+          mes: selects[0].value,
+          monto: inputs[3].value,
+          pago: inputs[4].checked
+        });
+      });
+      localStorage.setItem("datosClientes", JSON.stringify(datos));
+    }
+    function cargarDatos() {
+      const datos = JSON.parse(localStorage.getItem("datosClientes")) || [];
+      datos.forEach(d => {
+        agregarFila(d.cliente, d.cantidad, d.fecha, d.pago, d.monto, d.mes);
+      });
+    }
+    function agregarFila(cliente = "", cantidad = 0, fecha = "", pago = false, monto = 0, mes = "") {
+      const tabla = document.getElementById("tabla-clientes").getElementsByTagName('tbody')[0];
+      const fila = tabla.insertRow();
+      fila.innerHTML = `
+        <td><input type="text" value="${cliente}" oninput="guardarDatos()"></td>
+        <td><input type="number" min="0" value="${cantidad}" onchange="actualizarTotales(); guardarDatos()"></td>
+        <td><input type="date" value="${fecha}" onchange="guardarDatos()"></td>
+        <td>
+          <select onchange="guardarDatos()">
+            <option value="">--Seleccionar--</option>
+            ${["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"].map(m => `<option value="${m}" ${mes===m?"selected":""}>${m}</option>`).join('')}
+          </select>
+        </td>
+        <td><input type="number" min="0" value="${monto}" onchange="actualizarTotales(); guardarDatos()"></td>
+        <td><input type="checkbox" ${pago ? "checked" : ""} onchange="verificarPago(this); actualizarTotales(); guardarDatos()"></td>
+        <td><button onclick="eliminarFila(this)">Eliminar</button></td>
+      `;
+      if (!pago) fila.classList.add('bloqueado');
+      actualizarTotales();
+    }
+    function eliminarFila(boton) {
+      boton.closest("tr").remove();
+      actualizarTotales();
+      guardarDatos();
+    }
+    function actualizarTotales() {
+      const filas = document.querySelectorAll("#tabla-clientes tbody tr");
+      let totalEquipos = 0, totalPagos = 0, pagosMensuales = {};
+      filas.forEach(fila => {
+        const inputs = fila.getElementsByTagName('input');
+        const selects = fila.getElementsByTagName('select');
+        const cantidad = parseInt(inputs[1].value) || 0;
+        const monto = parseInt(inputs[3].value) || 0;
+        const pagado = inputs[4].checked;
+        const mes = selects[0]?.value || "";
+        totalEquipos += cantidad;
+        if (pagado) {
+          totalPagos += monto;
+          if (mes) pagosMensuales[mes] = (pagosMensuales[mes] || 0) + monto;
+        }
+      });
+      document.getElementById("resumenMensual").textContent = "Total mensual de equipos alquilados: " + totalEquipos;
+      document.getElementById("resumenPagos").textContent = "Total recibido en pagos: $" + totalPagos;
+      const lista = document.getElementById("listaPagosMensuales");
+      lista.innerHTML = "";
+      Object.keys(pagosMensuales).sort().forEach(mes => {
+        const item = document.createElement("li");
+        item.textContent = `${mes}: $${pagosMensuales[mes]}`;
+        lista.appendChild(item);
+      });
+    }
+    function verificarPago(checkbox) {
+      checkbox.closest('tr').classList.toggle('bloqueado', !checkbox.checked);
+    }
+    
+    function exportarExcel() {
+      let tabla = document.getElementById("tabla-clientes").outerHTML;
+      let blob = new Blob(['\ufeff', tabla], { type: 'application/vnd.ms-excel' });
+      let link = document.createElement("a");
+      link.href = URL.createObjectURL(blob);
+      link.download = "registro_pagos_fk_inversiones.xls";
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
+
+    window.onload = cargarDatos;
+  
+let movimientos = JSON.parse(localStorage.getItem("movimientos") || "[]");
+
+
+function registrarMovimiento(event) {
+  event.preventDefault();
+  const tipo = document.getElementById("tipo").value;
+  const monto = parseInt(document.getElementById("montoMovimiento").value);
+  const metodo = document.getElementById("metodoPago").value;
+  const mes = document.getElementById("mesMovimiento").value;
+  const motivo = document.getElementById("motivoMovimiento").value;
+
+  movimientos.push({ tipo, monto, metodo, mes, motivo });
+  localStorage.setItem("movimientos", JSON.stringify(movimientos));
+  document.getElementById("form-movimientos").reset();
+  actualizarListaMovimientos();
+}
+
+
+
+function actualizarListaMovimientos() {
+  const resumen = {};
+  let totalIngresos = 0;
+  let totalEgresos = 0;
+
+  const lista = document.getElementById("listaMovimientos");
+  lista.innerHTML = "";
+
+  movimientos.forEach(m => {
+    if (!resumen[m.mes]) resumen[m.mes] = { Ingreso: 0, Egreso: 0 };
+    resumen[m.mes][m.tipo] += m.monto;
+
+    if (m.tipo === "Ingreso") totalIngresos += m.monto;
+    if (m.tipo === "Egreso") totalEgresos += m.monto;
+
+    const li = document.createElement("li");
+    li.textContent = `${m.mes} - ${m.tipo}: $${m.monto} - ${m.metodo} - Motivo: ${m.motivo}`;
+    lista.appendChild(li);
+  });
+
+  document.getElementById("totalesGenerales").textContent =
+    `Total General — Ingresos: $${totalIngresos}, Egresos: $${totalEgresos}`;
+}
+, Egresos: $${totalEgresos}`;
+}
+
+function exportarMovimientosExcel() {
+  let html = "<table border='1'><tr><th>Mes</th><th>Ingreso</th><th>Egreso</th></tr>";
+  const resumen = {};
+  let totalIngresos = 0;
+  let totalEgresos = 0;
+
+  movimientos.forEach(m => {
+    if (!resumen[m.mes]) resumen[m.mes] = { Ingreso: 0, Egreso: 0 };
+    resumen[m.mes][m.tipo] += m.monto;
+    if (m.tipo === "Ingreso") totalIngresos += m.monto;
+    if (m.tipo === "Egreso") totalEgresos += m.monto;
+  });
+
+  Object.keys(resumen).sort().forEach(mes => {
+    const ingreso = resumen[mes].Ingreso || 0;
+    const egreso = resumen[mes].Egreso || 0;
+    html += `<tr><td>${mes}</td><td>${ingreso}</td><td>${egreso}</td></tr>`;
+  });
+
+  html += `<tr><th>Total General</th><th>${totalIngresos}</th><th>${totalEgresos}</th></tr>`;
+  html += "</table>";
+
+  let blob = new Blob(['﻿', html], { type: 'application/vnd.ms-excel' });
+  let link = document.createElement("a");
+  link.href = URL.createObjectURL(blob);
+  link.download = "movimientos_fk_inversiones.xls";
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+}
+
+function imprimirMovimientos() {
+  const resumen = {};
+  let totalIngresos = 0;
+  let totalEgresos = 0;
+
+  movimientos.forEach(m => {
+    if (!resumen[m.mes]) resumen[m.mes] = { Ingreso: 0, Egreso: 0 };
+    resumen[m.mes][m.tipo] += m.monto;
+
+    if (m.tipo === "Ingreso") totalIngresos += m.monto;
+    if (m.tipo === "Egreso") totalEgresos += m.monto;
+  });
+
+  let contenido = "<h3>Resumen de Movimientos</h3><ul>";
+  Object.keys(resumen).sort().forEach(mes => {
+    const ingreso = resumen[mes].Ingreso || 0;
+    const egreso = resumen[mes].Egreso || 0;
+    contenido += `<li>${mes} - Ingresos: $${ingreso}, Egresos: $${egreso}</li>`;
+  });
+  contenido += "</ul>";
+  contenido += `<p style="font-weight:bold;">Total General — Ingresos: $${totalIngresos}, Egresos: $${totalEgresos}</p>`;
+
+  const ventana = window.open("", "_blank");
+  ventana.document.write(`<html><head>
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#28a745"><title>Movimientos</title></head><body>${contenido}
+  <div class="resumen" style="margin-top: 30px;">
+    <h3>Generar Factura</h3>
+    <form id="form-factura" onsubmit="generarFactura(event)">
+      <label>Cliente: <input type="text" id="facturaCliente" required></label>
+      <label>Servicio Prestado: <input type="text" id="facturaServicio" required></label>
+      <label>Monto Total ($): <input type="number" id="facturaMonto" required min="0"></label>
+      <button type="submit" class="boton">Generar Factura</button>
+    </form>
+    <button class="boton" onclick="imprimirFactura()">Descargar Factura en PDF</button>
+<div id="facturaGenerada" style="margin-top: 20px; display: none; background: #fff; padding: 15px; border-radius: 8px; box-shadow: 0 0 5px rgba(0,0,0,0.1);">
+      <img src="logo_fk.png" alt="Logo FK Inversiones" style="width: 150px; display: block; margin-bottom: 10px;"><h3>Factura</h3>
+      <p><strong>Empresa:</strong> FK.inversiones</p>
+      <p><strong>Teléfono:</strong> 950832918</p>
+      <p><strong>Dirección:</strong> Pasaje los Portugueses 718, Chacra Marín, Melipilla</p>
+      
+<p><strong>Factura N°:</strong> <span id="facturaNumero"></span></p>
+<p><strong>Fecha de Emisión:</strong> <span id="facturaFecha"></span></p>
+
+<hr>
+      <p><strong>Cliente:</strong> <span id="facturaClienteOut"></span></p>
+      <p><strong>Servicio:</strong> <span id="facturaServicioOut"></span></p>
+      <p><strong>Monto Total:</strong> $<span id="facturaMontoOut"></span></p>
+      <p><em>Nota: Todo trabajo se realizará previa aprobación del presupuesto.</em></p>
+      <hr>
+      <p style="text-align:center; font-weight:bold;">FK.inversiones - los mejores en sistemas</p>
+    </div>
+  </div>
+
+</body></html>`);
+  ventana.document.close();
+  ventana.print();
+}
+
+const originalOnload = window.onload;
+window.onload = function() {
+  if (originalOnload) originalOnload();
+  actualizarListaMovimientos();
+};
+
+
+
+let contadorFactura = parseInt(localStorage.getItem("contadorFactura") || "1");
+
+function generarFactura(event) {
+  event.preventDefault();
+  const cliente = document.getElementById("facturaCliente").value;
+  const servicio = document.getElementById("facturaServicio").value;
+  const monto = document.getElementById("facturaMonto").value;
+
+  const fecha = new Date();
+  const numeroFactura = contadorFactura.toString().padStart(5, '0');
+  contadorFactura++;
+  localStorage.setItem("contadorFactura", contadorFactura);
+
+  document.getElementById("facturaClienteOut").textContent = cliente;
+  document.getElementById("facturaServicioOut").textContent = servicio;
+  document.getElementById("facturaMontoOut").textContent = monto;
+  document.getElementById("facturaNumero").textContent = numeroFactura;
+  document.getElementById("facturaFecha").textContent = fecha.toLocaleDateString();
+
+  document.getElementById("facturaGenerada").style.display = "block";
+  document.getElementById("form-factura").reset();
+}
+
+
+function imprimirFactura() {
+  const factura = document.getElementById("facturaGenerada").innerHTML;
+  const ventana = window.open("", "_blank");
+  ventana.document.write(`<html><head>
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#28a745"><title>Factura FK</title></head><body style='font-family: Arial;'>${factura}</body></html>`);
+  ventana.document.close();
+  ventana.print();
+}
+
+
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', function() {
+    navigator.serviceWorker.register('./service-worker.js')
+      .then(function(reg) {
+        console.log("Service worker registrado!", reg);
+      })
+      .catch(function(err) {
+        console.log("Error al registrar service worker:", err);
+      });
+  });
+}
+
+</script>
+
+  <div class="resumen">
+    <h3>Registro de Ingresos y Egresos</h3>
+    <form id="form-movimientos" onsubmit="registrarMovimiento(event)">
+      <label>
+        Tipo:
+        <select id="tipo">
+          <option value="Ingreso">Ingreso</option>
+          <option value="Egreso">Egreso</option>
+        </select>
+      </label>
+      <label>
+        Monto ($):
+        <input type="number" id="montoMovimiento" min="0" required>
+      </label>
+      <label>
+        Método de Pago:
+        <select id="metodoPago">
+          <option value="Efectivo">Efectivo</option>
+          <option value="Transferencia">Transferencia</option>
+        </select>
+      </label>
+      <label>
+        Mes:
+        <select id="mesMovimiento">
+          <option value="Enero">Enero</option>
+          <option value="Febrero">Febrero</option>
+          <option value="Marzo">Marzo</option>
+          <option value="Abril">Abril</option>
+          <option value="Mayo">Mayo</option>
+          <option value="Junio">Junio</option>
+          <option value="Julio">Julio</option>
+          <option value="Agosto">Agosto</option>
+          <option value="Septiembre">Septiembre</option>
+          <option value="Octubre">Octubre</option>
+          <option value="Noviembre">Noviembre</option>
+          <option value="Diciembre">Diciembre</option>
+        </select>
+      </label>
+      
+<label>
+  Motivo:
+  <input type="text" id="motivoMovimiento" required>
+</label>
+<button type="submit" class="boton">Registrar Movimiento</button>
+
+    </form>
+
+    <div style="margin-top: 15px;">
+      <h4>Resumen de Movimientos</h4>
+      <ul id="listaMovimientos" style="list-style: none; padding-left: 0;"></ul>
+      <div id="totalesGenerales" style="margin-top: 10px; font-weight: bold;"></div>
+      <div style="margin-top: 10px;">
+        <button class="boton" onclick="exportarMovimientosExcel()">Exportar Movimientos a Excel</button>
+        <button class="boton" onclick="imprimirMovimientos()">Exportar Movimientos a PDF / Imprimir</button>
+      </div>
+    </div>
+  </div>
+
+
+  <div class="resumen" style="margin-top: 30px;">
+    <h3>Generar Factura</h3>
+    <form id="form-factura" onsubmit="generarFactura(event)">
+      <label>Cliente: <input type="text" id="facturaCliente" required></label>
+      <label>Servicio Prestado: <input type="text" id="facturaServicio" required></label>
+      <label>Monto Total ($): <input type="number" id="facturaMonto" required min="0"></label>
+      <button type="submit" class="boton">Generar Factura</button>
+    </form>
+    <button class="boton" onclick="imprimirFactura()">Descargar Factura en PDF</button>
+<div id="facturaGenerada" style="margin-top: 20px; display: none; background: #fff; padding: 15px; border-radius: 8px; box-shadow: 0 0 5px rgba(0,0,0,0.1);">
+      <img src="logo_fk.png" alt="Logo FK Inversiones" style="width: 150px; display: block; margin-bottom: 10px;"><h3>Factura</h3>
+      <p><strong>Empresa:</strong> FK.inversiones</p>
+      <p><strong>Teléfono:</strong> 950832918</p>
+      <p><strong>Dirección:</strong> Pasaje los Portugueses 718, Chacra Marín, Melipilla</p>
+      <hr>
+      <p><strong>Cliente:</strong> <span id="facturaClienteOut"></span></p>
+      <p><strong>Servicio:</strong> <span id="facturaServicioOut"></span></p>
+      <p><strong>Monto Total:</strong> $<span id="facturaMontoOut"></span></p>
+      <p><em>Nota: Todo trabajo se realizará previa aprobación del presupuesto.</em></p>
+      <hr>
+      <p style="text-align:center; font-weight:bold;">FK.inversiones - los mejores en sistemas</p>
+    </div>
+  </div>
+
+</body>
+</html>
